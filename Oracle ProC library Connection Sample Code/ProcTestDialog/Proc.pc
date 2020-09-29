@@ -1,0 +1,60 @@
+// Proc.cpp : implementation file
+//
+
+#include "stdafx.h"
+#include "ProcTestDialog.h"
+#include "Proc.h"
+
+#include <sys/stat.h>
+#include <assert.h>
+#include <sqlca.h>
+
+
+CProc::CProc()
+{
+	m_strDatabase = _T("localhost");
+	m_strUser = _T("username");
+	m_strPassword = _T("password");
+	
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+
+	EXEC SQL ENABLE THREADS;
+	EXEC SQL CONTEXT ALLOCATE :sqlContext;
+	m_sqlSessionContext = sqlContext;
+	m_strSessionName = "BoxManager";
+	m_bIsDBOpen = FALSE;
+}
+
+CProc::~CProc()
+{
+}
+
+BOOL CProc::OpenDatabase()
+{
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+		const char*	sqlSession;
+		const char*	sqlDatabase;
+		const char*	sqlUsername;
+		const char*	sqlPassword;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+
+	sqlContext = m_sqlSessionContext;
+	sqlSession = m_strSessionName;
+	sqlDatabase = m_strDatabase;
+	sqlUsername = m_strUser;
+	sqlPassword = m_strPassword;
+
+	EXEC SQL CONTEXT USE :sqlContext;
+	EXEC SQL CONNECT :sqlUsername IDENTIFIED BY :sqlPassword AT :sqlSession USING :sqlDatabase;
+	if (sqlca.sqlcode != 0)
+	{
+		
+		return FALSE;
+	}
+	return TRUE;
+}
