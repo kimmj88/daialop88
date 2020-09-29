@@ -1,0 +1,56 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoxManagerConfig", "BoxManagerConfig\BoxManagerConfig.vcproj", "{75E80C46-B81B-419F-8F97-60FC428158F4}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoxManagerService", "BoxManagerService\BoxManagerService.vcproj", "{24966719-F12E-4FA2-BA3B-C570872B9C92}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug for Oracle10g|Win32 = Debug for Oracle10g|Win32
+		Debug for Oracle11g|Win32 = Debug for Oracle11g|Win32
+		Debug for Oracle9i|Win32 = Debug for Oracle9i|Win32
+		Debug|Win32 = Debug|Win32
+		Release for Oracle10g|Win32 = Release for Oracle10g|Win32
+		Release for Oracle11g|Win32 = Release for Oracle11g|Win32
+		Release for Oracle9i|Win32 = Release for Oracle9i|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Debug for Oracle10g|Win32.ActiveCfg = Debug|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Debug for Oracle10g|Win32.Build.0 = Debug|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Debug for Oracle11g|Win32.ActiveCfg = Debug for Oracle11g|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Debug for Oracle11g|Win32.Build.0 = Debug for Oracle11g|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Debug for Oracle9i|Win32.ActiveCfg = Debug|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Debug for Oracle9i|Win32.Build.0 = Debug|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Debug|Win32.ActiveCfg = Debug for Oracle11g|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Debug|Win32.Build.0 = Debug for Oracle11g|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Release for Oracle10g|Win32.ActiveCfg = Release|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Release for Oracle10g|Win32.Build.0 = Release|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Release for Oracle11g|Win32.ActiveCfg = Release for Oracle11g|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Release for Oracle11g|Win32.Build.0 = Release for Oracle11g|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Release for Oracle9i|Win32.ActiveCfg = Release|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Release for Oracle9i|Win32.Build.0 = Release|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Release|Win32.ActiveCfg = Release|Win32
+		{75E80C46-B81B-419F-8F97-60FC428158F4}.Release|Win32.Build.0 = Release|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Debug for Oracle10g|Win32.ActiveCfg = Debug for Oracle10g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Debug for Oracle10g|Win32.Build.0 = Debug for Oracle10g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Debug for Oracle11g|Win32.ActiveCfg = Debug for Oracle11g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Debug for Oracle11g|Win32.Build.0 = Debug for Oracle11g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Debug for Oracle9i|Win32.ActiveCfg = Debug for Oracle9i|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Debug for Oracle9i|Win32.Build.0 = Debug for Oracle9i|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Debug|Win32.ActiveCfg = Debug for Oracle10g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Debug|Win32.Build.0 = Debug for Oracle10g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Release for Oracle10g|Win32.ActiveCfg = Release for Oracle10g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Release for Oracle10g|Win32.Build.0 = Release for Oracle10g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Release for Oracle11g|Win32.ActiveCfg = Release for Oracle11g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Release for Oracle11g|Win32.Build.0 = Release for Oracle11g|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Release for Oracle9i|Win32.ActiveCfg = Release for Oracle9i|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Release for Oracle9i|Win32.Build.0 = Release for Oracle9i|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Release|Win32.ActiveCfg = Release|Win32
+		{24966719-F12E-4FA2-BA3B-C570872B9C92}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

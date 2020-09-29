@@ -1,0 +1,568 @@
+ /************************************************************************
+ *
+ *	Copyright (c) 1997-2002, INFINITT Co., Ltd.
+ *	All Rights Reserved
+ *
+ *	$Workfile: BoxManagerDatabase.pc $
+ *	$Author: Jin0416 $
+ *	$Date: 08-12-22 9:30a $
+ *	$Revision: 1 $
+ *
+ ************************************************************************/
+
+#include "BoxManagerDatabase.h"
+
+#include <sys/stat.h>
+#include <assert.h>
+#include <sqlca.h>
+
+#include "ServerCommon.h"
+#include "DirectEx.h"
+
+//#ifdef _DEBUG
+//#define new DEBUG_NEW
+//#endif
+#ifdef _DEBUG
+
+#define new DEBUG_NEW
+#endif
+#define _EXT_	_T("dcm")
+#define BUF_SIZE 10000; 
+char szZIPFileName[_MAX_PATH];
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+FBINFO::FBINFO(void)
+{
+	nThreshold = 95;
+	bInUse = FALSE;
+}
+
+//#define	TO_PCHAR(str)		((LPTSTR)(LPCSTR)(str))
+
+#define	CSTR_TO_VSTR(strValue, vszValue, niIndicator) \
+{ \
+	if (strValue.IsEmpty()) \
+	{ \
+		(niIndicator) = -1; \
+	} \
+	else \
+	{ \
+		int nValueSize = sizeof((vszValue).arr); \
+		strncpy((char*)(vszValue).arr, TO_PCHAR(strValue), nValueSize); \
+		(vszValue).arr[nValueSize - 1] = '\0'; \
+		(vszValue).len = strlen((char*)(vszValue).arr); \
+		(niIndicator) = 0; \
+	} \
+}
+
+#define	VSTR_TO_CSTR(vszValue, niIndicator, strValue) \
+{ \
+	if ((niIndicator) == 0) \
+	{ \
+		(vszValue).arr[(vszValue).len] = '\0'; \
+		strValue = (vszValue).arr; \
+	} \
+	else \
+	{ \
+		strValue = ""; \
+	} \
+}
+
+#define	INIT_VSTR(vstr) \
+{ \
+	(vstr).len = sizeof((vstr).arr); \
+	memset((vstr).arr, 0, (vstr).len); \
+} \
+
+#define GET_SQL_ERROR(sqlca, pszErrorText) \
+{ \
+	pszErrorText = sqlca.sqlerrm.sqlerrmc; \
+	pszErrorText[sqlca.sqlerrm.sqlerrml - 1] = 0; \
+} 
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+DBINFO::DBINFO(void)
+{
+}
+
+DBINFO::DBINFO(const char* pszDatabase, const char* pszUsername, const char* pszPassword)
+{
+	strDatabase = pszDatabase;
+	strUsername = pszUsername;
+	strPassword = pszPassword;
+}
+
+//////////////////////////////////////////////////////////////////////
+
+CBoxManagerDatabase::CBoxManagerDatabase(CMFLogger* pLogger)
+{
+	m_pLogger = pLogger;
+	
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+
+	EXEC SQL ENABLE THREADS;
+	EXEC SQL CONTEXT ALLOCATE :sqlContext;
+	m_sqlSessionContext = sqlContext;
+	m_strSessionName = "BoxManager";
+	m_bIsDBOpen = FALSE;
+}
+
+CBoxManagerDatabase::~CBoxManagerDatabase()
+{
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+
+	if (m_bIsDBOpen)
+		Close();
+
+	sqlContext = m_sqlSessionContext;
+	EXEC SQL CONTEXT FREE :sqlContext;
+}
+
+BOOL
+CBoxManagerDatabase::Open(const DBINFO& dbinfo)
+{
+	if (m_bIsDBOpen)
+		return TRUE;
+
+	m_strDatabase = dbinfo.strDatabase;
+	m_strUsername = dbinfo.strUsername;
+	m_strPassword = dbinfo.strPassword;
+
+	if (!OpenDBSession())
+		return FALSE;
+
+	m_bIsDBOpen = TRUE;
+
+	UINT nOpenCount = 0;
+
+
+	if (!OpenPublicFolderSession(m_strPublicSourceDir))
+	{
+		m_pLogger->LogMessage(1, LOG_FAIL, "database: open: distributed server start failed: can't access public upload-folder");
+		return FALSE;
+	}
+	if (m_strPublicSourceDir.IsEmpty())
+	{
+		m_pLogger->LogMessage(1, LOG_FAIL, "database: open: distributed server start failed: can't find public upload-folder");
+		return FALSE;
+	}
+
+	m_pLogger->LogMessage(4, LOG_DEBUG, "database: open: find public session source folder (source folder=%s)", m_strPublicSourceDir);
+
+
+	return TRUE;
+}
+
+BOOL
+CBoxManagerDatabase::OpenDBSession(void)
+{
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+		const char*	sqlSession;
+		const char*	sqlDatabase;
+		const char*	sqlUsername;
+		const char*	sqlPassword;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+
+	sqlContext = m_sqlSessionContext;
+	sqlSession = m_strSessionName;
+	sqlDatabase = m_strDatabase;
+	sqlUsername = m_strUsername;
+	sqlPassword = m_strPassword;
+
+	EXEC SQL CONTEXT USE :sqlContext;
+	EXEC SQL CONNECT :sqlUsername IDENTIFIED BY :sqlPassword AT :sqlSession USING :sqlDatabase;
+	if (sqlca.sqlcode != 0)
+	{
+		SetLastError("database session open failed (db=%s,user=%s,sqlcode=%d)", m_strDatabase, m_strUsername, sqlca.sqlcode);
+		m_pLogger->LogMessage(1, LOG_FAIL, "database: open: database session open failed (name=%s,db=%s,user=%s,sqlcode=%d)",
+			sqlSession, m_strDatabase, m_strUsername, sqlca.sqlcode);
+		return FALSE;
+	}
+	
+	m_pLogger->LogMessage(3, LOG_INFO, "database: open: database session opened (name=%s,db=%s,user=%s)", sqlSession, m_strDatabase, m_strUsername);
+	return TRUE;
+}
+
+BOOL
+CBoxManagerDatabase::Close(void)
+{
+	CloseDBSession();
+
+	m_bIsDBOpen = FALSE;
+	return TRUE;
+}
+
+BOOL
+CBoxManagerDatabase::CloseDBSession(void)
+{
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+		const char* sqlSession;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+
+	sqlContext = m_sqlSessionContext;
+	sqlSession = m_strSessionName;
+
+	EXEC SQL CONTEXT USE :sqlContext;
+	EXEC SQL AT :sqlSession ROLLBACK WORK RELEASE;
+
+	if (sqlca.sqlcode != 0)
+		m_bIsDBOpen = FALSE;
+
+	m_pLogger->LogMessage(3, LOG_INFO, "database: close: database session closed (name=%s)", sqlSession);
+	return TRUE;
+}
+
+BOOL
+CBoxManagerDatabase::IsOpen(void)
+{
+	if (!m_bIsDBOpen)
+	{
+		if (!Open(DBINFO(m_strDatabase, m_strUsername, m_strPassword)))
+			return FALSE;
+	}
+
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+		const char* sqlSession;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+
+	sqlContext = m_sqlSessionContext;
+	sqlSession = m_strSessionName;
+	EXEC SQL CONTEXT USE :sqlContext;
+	
+	EXEC SQL AT :sqlSession	SELECT 1 FROM dual;
+	if (sqlca.sqlcode == 0)
+		return TRUE;
+
+	m_pLogger->LogMessage(1, LOG_FAIL, "database: isopen: database session broken (name=%s)", sqlSession);
+
+	CloseDBSession();
+	return OpenDBSession();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+const char*
+CBoxManagerDatabase::GetLastError(void)
+{
+	return m_strLastError;
+}
+
+void
+CBoxManagerDatabase::SetLastError(const char* pszFormat, ...)
+{
+	va_list ap;
+
+	va_start(ap, pszFormat);
+	vsprintf(m_strLastError.GetBuffer(256), pszFormat, ap);
+	m_strLastError.ReleaseBuffer();
+	va_end(ap);
+}
+
+const char*
+CBoxManagerDatabase::GetVersion(void)
+{
+	CString strWorkfile = "$Workfile: BoxManagerDatabase.pc $";
+	CString strRevision = "$Revision: 1 $";
+	CString strDate = "$Date: 08-12-22 9:30a $";
+	static CString strVersion;
+
+	strWorkfile.Replace("$", ""); strWorkfile.TrimLeft(); strWorkfile.TrimRight();
+	strRevision.Replace("$", ""); strRevision.TrimLeft(); strRevision.TrimRight();
+	strDate.Replace("$", ""); strDate.TrimLeft(); strDate.TrimRight();
+	strVersion.Format("%s, %s, %s", strWorkfile, strRevision, strDate);
+
+	return strVersion;
+}
+
+BOOL
+CBoxManagerDatabase::GetAllRecord(list<INTERBOXINFO>* list_ibinfo)
+{
+	CSingleLock sgl(&m_mtxDatabase, TRUE);
+
+	if (!IsOpen())
+	{
+		//m_pLogger->LogMessage(1, LOG_FAIL, "%s: %s: failed (broken)", strModuleName, strFuncName);
+		return FALSE;
+	}
+
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+		const char* sqlSession;
+		const char*	pszSQLstmt;
+
+		int		nJob_key;
+		VARCHAR	szJobType[10];
+		VARCHAR szJobStat[2];
+
+		short	niJobType = 0;
+		short	niJobStat = 0;
+
+
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+	INTERBOXINFO	ibinfo;
+	CString strSQLstmt;
+	CString strHostname, strSharename, strProtocol;
+	UINT nPort = 3004;
+
+	sqlContext = m_sqlSessionContext;
+	sqlSession = m_strSessionName;
+
+	list_ibinfo->clear();
+
+	//////as
+	EXEC SQL CONTEXT USE :sqlContext;
+	strSQLstmt.Format("SELECT JOB_KEY, JOB_TYPE, JOB_STAT FROM INTERBOX WHERE DELETE_REQUEST = 'Y'");
+	pszSQLstmt = strSQLstmt;
+	EXEC SQL AT :sqlSession DECLARE sql_volume STATEMENT;
+	EXEC SQL AT :sqlSession DECLARE cur_volume CURSOR FOR sql_volume;
+	EXEC SQL AT :sqlSession PREPARE sql_volume FROM :pszSQLstmt;
+	EXEC SQL AT :sqlSession OPEN cur_volume;
+
+	while(sqlca.sqlcode == 0)
+	{
+		EXEC SQL AT :sqlSession FETCH cur_volume
+			INTO :nJob_key,
+				:szJobType:niJobType, 
+				:szJobStat:niJobStat;
+
+		if (sqlca.sqlcode != 0)
+		{
+			break;
+		}
+		ibinfo.nJob_key = nJob_key;
+		VSTR_TO_CSTR(szJobType, niJobType, ibinfo.strJobType);
+		VSTR_TO_CSTR(szJobStat, niJobStat, ibinfo.strJobStat);
+
+		
+		list_ibinfo->push_back(ibinfo);
+	}
+	EXEC SQL AT :sqlSession CLOSE cur_volume;
+
+//	m_bIgnoreOpenError = FALSE;
+	
+	if (list_ibinfo->size() == 0)
+	{
+		return FALSE;
+	}
+	return TRUE;
+}
+
+BOOL
+CBoxManagerDatabase::OpenFBSession(FBINFO& fbinfo)
+{
+	NETRESOURCE netrc;
+	DWORD nRet;
+
+	netrc.dwType = RESOURCETYPE_DISK;
+	netrc.lpLocalName = NULL;
+	netrc.lpRemoteName = (LPTSTR)(LPCSTR)fbinfo.strVolumePath;
+	netrc.lpProvider = NULL;
+	nRet = WNetAddConnection2(&netrc, fbinfo.strPassword, fbinfo.strUsername, 0);
+	if (nRet != NO_ERROR)
+	{
+		fbinfo.bInUse = FALSE;
+		SetLastError("filebase attach failed (volume=%s[%s],user=%s,error=%s,neterror=%s)", 
+			fbinfo.strVolumePath, fbinfo.strVolumeCode, fbinfo.strUsername, GET_ERRORINFO, GetNetErrorMessage(nRet));
+		m_pLogger->LogMessage(1, LOG_FAIL, "database: open: filebase attach failed (volume=%s, user=%s,error=%s,neterror=%s)", 
+			fbinfo.strVolumePath, fbinfo.strUsername, GET_ERRORINFO, GetNetErrorMessage(nRet));			
+		return FALSE;
+	}
+	fbinfo.bInUse = TRUE;
+	m_pLogger->LogMessage(3, LOG_INFO, "database: open: filebase attached (Folder Path=%s, User=%s)", 
+		fbinfo.strVolumePath, fbinfo.strUsername);
+	return TRUE;
+}
+
+BOOL
+CBoxManagerDatabase::CloseFBSession(FBINFO& fbinfo)
+{
+	if (fbinfo.bInUse)
+	{
+		WNetCancelConnection2(fbinfo.strVolumePath, 0, TRUE);
+
+		fbinfo.bInUse = FALSE;
+		m_pLogger->LogMessage(4, LOG_DEBUG, "database: close: filebase detached (volume=%s[%s])", 
+			fbinfo.strVolumePath, fbinfo.strVolumeCode);
+	}
+	return TRUE;
+}
+
+BOOL
+CBoxManagerDatabase::OpenPublicFolderSession(CString& strPublicUploadDir)
+{
+	CString strUsername, strPassword;
+	BOOL bRet = TRUE;
+
+	strPublicUploadDir = GetProfileString("INTERBOX", "SHAREPATH", "");
+	strUsername = GetProfileString("INTERBOX", "USERID", "");
+	strPassword = GetProfileString("INTERBOX", "PASSWORD", "");
+	
+	FBINFO fbinfo;
+
+	fbinfo.strUsername = strUsername;
+	fbinfo.strPassword = strPassword;
+	fbinfo.bInUse = TRUE;
+	fbinfo.strVolumePath = strPublicUploadDir;
+
+	bRet = OpenFBSession(fbinfo);
+	
+	m_bUsePublicUploadDir = bRet;
+
+	return bRet;
+}
+
+CString
+CBoxManagerDatabase::GetProfileString(CString strSection, CString strEntry, CString strValue)
+{
+	CSingleLock sgl(&m_mtxDatabase, TRUE);
+
+	if (!IsOpen())
+	{
+//		m_pLogger->LogMessage(1, LOG_FAIL, "%s: %s: failed (broken)", strModuleName, strFuncName);
+		return strValue;
+	}
+
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+		const char* sqlSession;
+
+		VARCHAR		szSection[70], szEntry[70], szValue[2050];
+		short		niSection, niEntry, niValue;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+	char* pszSQLError;
+
+	sqlContext = m_sqlSessionContext;
+	sqlSession = m_strSessionName;
+
+	EXEC SQL CONTEXT USE :sqlContext;
+
+	CSTR_TO_VSTR(strSection, szSection, niSection);
+	CSTR_TO_VSTR(strEntry, szEntry, niEntry);
+	CSTR_TO_VSTR(strValue, szValue, niValue);
+
+	EXEC SQL AT :sqlSession EXECUTE
+	BEGIN
+		:szValue:niValue := sp_profile.get_string(:szSection:niSection, :szEntry:niEntry, :szValue);
+	END;
+	END-EXEC;
+	if (sqlca.sqlcode != 0)
+	{
+		GET_SQL_ERROR(sqlca, pszSQLError);
+		m_pLogger->LogMessage(1, LOG_FAIL, "database: get-profile-failed (section=%s,entry=%s,sqlerrm=%s)", strSection, strEntry, pszSQLError);
+		return strValue;
+	}
+
+	VSTR_TO_CSTR(szValue, niValue, strValue);
+	return strValue;
+}
+
+CString
+CBoxManagerDatabase::GetShareFolderFullPath()
+{
+	return	m_strPublicSourceDir;
+}
+
+BOOL	
+CBoxManagerDatabase::DeletedStatus(int nJob_key, int nErrorCode)
+{
+	CSingleLock sgl(&m_mtxDatabase, TRUE);
+
+	if (!IsOpen())
+	{
+//		m_pLogger->LogMessage(1, LOG_FAIL, "%s: %s: failed (broken)", strModuleName, strFuncName);
+		return 0;
+	}
+
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+		const char* sqlSession;
+
+		int			nErrorcode;
+		short		niErrorcode;
+		short		niJob_key;
+
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+	char* pszSQLError;
+
+	
+	sqlContext = m_sqlSessionContext;
+	sqlSession = m_strSessionName;
+
+	niErrorcode = 0;
+
+	EXEC SQL CONTEXT USE :sqlContext;
+	nErrorCode = nErrorCode;
+
+	niJob_key = (short)nJob_key;
+
+	EXEC SQL AT :sqlSession EXECUTE
+	BEGIN
+		SP_INTERBOX.SET_STATUS_DELETED(:nJob_key:niJob_key,  :nErrorcode:niErrorcode);
+	END;
+	END-EXEC;
+
+	if (sqlca.sqlcode != 0)
+	{
+		GET_SQL_ERROR(sqlca, pszSQLError);
+		
+		//m_pLogger->LogMessage(1, LOG_FAIL, "database: get-profile-boolean (section=%s,entry=%s,sqlerrm=%s)", strSection, strEntry, pszSQLError);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+BOOL
+CBoxManagerDatabase::IsRollBackInterBoxStatus(BOOL bDelete, CString strFolderPath)
+{
+	EXEC SQL BEGIN DECLARE SECTION;
+		SQL_CONTEXT sqlContext;
+		const char* sqlSession;
+	EXEC SQL END DECLARE SECTION;
+	struct sqlca sqlca;
+
+	sqlContext = m_sqlSessionContext;
+	sqlSession = m_strSessionName;
+
+	EXEC SQL CONTEXT USE :sqlContext;
+
+	if(bDelete)
+	{
+		EXEC SQL AT :sqlSession COMMIT WORK;
+		m_pLogger->LogMessage(3, LOG_INFO, _T("Deletion Files : Folder Path = %s with Database Commit"), strFolderPath);
+	}
+	else
+	{
+		EXEC SQL AT :sqlSession ROLLBACK WORK;
+		m_pLogger->LogMessage(1, LOG_FAIL, _T("Deletion Failed :Folder Path = %s with Database Rollback"), strFolderPath);
+		
+	}
+	if (sqlca.sqlcode != 0)
+		m_bIsDBOpen = FALSE;
+
+	return TRUE;
+}
+CString
+CBoxManagerDatabase::GetDatabaseName()
+{
+	return m_strDatabase;
+}

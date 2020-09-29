@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<system_info>
+	<title>NKC Cache Express Administrator</title>
+	<company_logo></company_logo>
+	<solution_logo></solution_logo>
+	<ce_logo></ce_logo>
+	<product_name>NKC Cache Express</product_name>
+	<copyright_info>NIHON KOHDEN CORPORATION
+
+http://www.nihonkohden.co.jp</copyright_info>
+	<contact_info>NIHON KOHDEN CORPORATION
+
+http://www.nihonkohden.co.jp</contact_info>
+	<registation_info>For normal operation, NKC Cache Express MUST BE REGISTERED with the valid Registration Number, which can be gotten from NIHON KOHDEN CORPORATION.
+Contact Technical Staff of NIHON KOHDEN CORPORATION. with the following System Serial Number.</registation_info>
+	<registry_root>NKC</registry_root>
+	<company_name>NIHON KOHDEN CORPORATION</company_name>
+	<service_display_name>NKC Cache Express</service_display_name>
+	<default_directory_root>C:\NKC</default_directory_root>
+</system_info>

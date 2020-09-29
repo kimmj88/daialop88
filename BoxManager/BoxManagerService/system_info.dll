@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<system_info>
+	<title>I-PACS CX BoxManager</title>
+	<company_logo></company_logo>
+	<solution_logo></solution_logo>
+	<ce_logo></ce_logo>
+	<product_name>I-PACS CX BoxManage</product_name>
+	<copyright_info>Copyright (C) 1999-2010, Konica Minolta Co., Ltd.
+All Rights Reserved
+http://www.konicaMinolta.com</copyright_info>
+	<contact_info>Konica Minolta Co., Ltd. (http://www.KonicaMinolta.com)
+	</contact_info>
+	<registation_info>For normal operation, I-PACS CX BoxManager MUST BE REGISTERED with the valid Registration Number, which can be gotten from Konica Minolta Co., Ltd.
+Contact Technical Staff of Konica Minolta Co., Ltd. with the following System Serial Number.</registation_info>
+	<registry_root>IPACS_CX</registry_root>
+	<company_name>Konica Minolta</company_name>
+	<service_display_name>I-PACS CX BoxManager</service_display_name>
+	<default_directory_root>C:\IPACS_CX</default_directory_root>
+</system_info>
